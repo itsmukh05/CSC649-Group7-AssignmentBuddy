@@ -31,14 +31,13 @@ The purpose is to provide students with accessible academic guidance while encou
 
 ## 3. Team Members
 
-This project is developed collaboratively by four CSC649 group members.
+This project is developed collaboratively by three CSC649 group members.
 
 | No. | Name | GitHub Username | Role |
 |---|---|---|---|
-| 1 | MOHAMAD IMRAN BIN MOHAMAD ASTURA | GitHub Username | Project Leader & System Integration |
-| 2 | MUHAMMAD AMMAR MUKHRIZ BIN BASRUL HISHAM | itsmukh05 | Dataset Development & Research |
-| 3 | MUHAMMAD FARHAN DANISH BIN MOHD FAIZAL | GitHub Username | AI Model & Backend Development |
-| 4 | Member 4 Name | GitHub Username | Frontend, Testing & Documentation |
+| 1 | MUHAMMAD AMMAR MUKHRIZ BIN BASRUL HISHAM | itsmukh05 | Project Leader & System Integration |
+| 2 | MOHAMAD IMRAN BIN MOHAMAD ASTURA | mohdmran  | AI Model , Backend Development , Dataset Development |
+| 3 | MUHAMMAD FARHAN DANISH BIN MOHD FAIZAL | farhandnish | Frontend, Testing & Documentation |
 
 All members are expected to contribute to technical development, testing, documentation and GitHub collaboration.
 
