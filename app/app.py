@@ -1,6 +1,18 @@
+import csv
+from datetime import datetime
+from pathlib import Path
 import streamlit as st
 
-# --- 1. PAGE CONFIG & ANIMATED CSS ---
+# --- 1. PATHS & BACKEND STATUS ---
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATASET_CANDIDATES = [
+    PROJECT_ROOT / "data" / "assignment_buddy_dataset.csv",
+    PROJECT_ROOT / "Chatbox_CSC649_GroupAssignment" / "data" / "assignment_buddy_dataset.csv",
+]
+BACKEND_CONNECTED = False
+
+
+# --- 2. PAGE CONFIG & ANIMATED CSS ---
 st.set_page_config(
     page_title="Assignment Buddy",
     page_icon="🎓",
@@ -16,15 +28,30 @@ st.markdown(
         padding-top: 1.4rem;
         padding-bottom: 2rem;
     }
+
     @keyframes gradientShift {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
+
     @keyframes floatIcon {
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-5px); }
     }
+
+    @keyframes pulseDot {
+        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    @keyframes pulseAmber {
+        0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+        70% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
     .hero-banner {
         background: linear-gradient(125deg, #1E3A8A, #2563EB, #0284C7, #1D4ED8);
         background-size: 260% 260%;
@@ -35,6 +62,7 @@ st.markdown(
         margin-bottom: 1.5rem;
         box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
     }
+
     .hero-badge {
         display: inline-block;
         background: rgba(255, 255, 255, 0.18);
@@ -46,37 +74,182 @@ st.markdown(
         margin-bottom: 0.65rem;
         letter-spacing: 0.04em;
     }
+
     .hero-title-row {
         display: flex;
         align-items: center;
         gap: 0.65rem;
     }
+
     .hero-icon {
         display: inline-block;
         font-size: 2.1rem;
         animation: floatIcon 3s ease-in-out infinite;
     }
+
     .hero-banner h1 {
         margin: 0;
         font-size: 2rem;
         font-weight: 700;
         color: #FFFFFF;
     }
+
     .hero-banner p {
         margin: 0.45rem 0 0 0;
         font-size: 0.97rem;
         color: #E0F2FE;
+    }
+
+    .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.55rem 0.85rem;
+        border-radius: 10px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-top: 0.35rem;
+    }
+
+    .status-live {
+        background-color: #ECFDF5;
+        color: #065F46;
+        border: 1px solid #A7F3D0;
+    }
+
+    .status-preview {
+        background-color: #FFFBEB;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+
+    .dot-green {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: #22C55E;
+        animation: pulseDot 2s infinite;
+        flex-shrink: 0;
+    }
+
+    .dot-amber {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: #F59E0B;
+        animation: pulseAmber 2s infinite;
+        flex-shrink: 0;
+    }
+
+    .integrity-box {
+        padding: 0.85rem;
+        border-radius: 10px;
+        background-color: #EFF6FF;
+        border-left: 4px solid #2563EB;
+        font-size: 0.83rem;
+        color: #1E293B;
+        line-height: 1.45;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# --- 2. SESSION STATE ---
+
+# --- 3. HELPER FUNCTIONS ---
+@st.cache_data
+def count_dataset_pairs() -> int:
+    """Count rows in the custom Q&A CSV dataset if present."""
+    for path in DATASET_CANDIDATES:
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8-sig") as file:
+                    return sum(1 for _ in csv.DictReader(file))
+            except Exception:
+                return 0
+    return 0
+
+
+def format_chat_for_download(messages: list[dict]) -> str:
+    """Format conversation history as a downloadable text file."""
+    lines = [
+        "Assignment Buddy - Chat Transcript",
+        f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "=" * 46,
+        "",
+    ]
+    for msg in messages:
+        speaker = "Student" if msg["role"] == "user" else "Assignment Buddy"
+        lines.append(f"{speaker}:\n{msg['content']}\n")
+    return "\n".join(lines)
+
+
+# --- 4. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 3. ANIMATED HERO BANNER ---
+dataset_count = count_dataset_pairs()
+
+
+# --- 5. SIDEBAR ---
+with st.sidebar:
+    st.markdown("### 🎓 Assignment Buddy")
+    st.caption("Your Interactive Academic AI Assistant")
+
+    if BACKEND_CONNECTED:
+        st.markdown(
+            '<div class="status-pill status-live"><span class="dot-green"></span>Backend Live (Gemini + CSV)</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="status-pill status-preview"><span class="dot-amber"></span>Preview Mode (Awaiting Backend)</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+    st.markdown("#### 📊 Knowledge Base")
+    st.metric(
+        label="Available Q&A Pairs",
+        value=dataset_count if dataset_count > 0 else "Pending",
+    )
+    st.caption("Source: Custom academic CSV dataset (`assignment_buddy_dataset.csv`)")
+
+    st.divider()
+
+    st.markdown("#### 🎛️ Session Controls")
+    user_msg_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
+    st.caption(f"Questions asked this session: **{user_msg_count}**")
+
+    if st.button("🗑️ Clear Conversation", use_container_width=True):
+        st.session_state.messages = []
+        st.toast("Conversation cleared!", icon="🧹")
+        st.rerun()
+
+    st.download_button(
+        label="💾 Download Chat (.txt)",
+        data=format_chat_for_download(st.session_state.messages),
+        file_name="assignment_buddy_chat.txt",
+        mime="text/plain",
+        disabled=(user_msg_count == 0),
+        use_container_width=True,
+    )
+
+    st.divider()
+
+    st.markdown(
+        '<div class="integrity-box"><strong>Academic Integrity Note</strong><br>'
+        "Assignment Buddy provides academic guidance and examples. Always write "
+        "your final work in your own words and verify citations.</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
+    st.caption("**Course:** CSC649  \n**Domain:** Education – Academic Assistance")
+
+
+# --- 6. ANIMATED HERO BANNER ---
 st.markdown(
     """
     <div class="hero-banner">
@@ -91,13 +264,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 4. CHAT HISTORY ---
+
+# --- 7. CHAT HISTORY ---
 for message in st.session_state.messages:
     avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# --- 5. CHAT INPUT ---
+
+# --- 8. CHAT INPUT ---
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
     if cleaned:
@@ -105,7 +280,7 @@ if typed_input := st.chat_input("Type your academic question here..."):
         with st.chat_message("user", avatar="🧑‍🎓"):
             st.markdown(cleaned)
 
-        reply = f"**[UI Preview Mode]** You asked: *\"{cleaned}\"* — frontend ready for sidebar and backend integration."
+        reply = f"**[UI Preview Mode]** You asked: *\"{cleaned}\"* — frontend ready for interactive prompts and backend integration."
         st.session_state.messages.append({"role": "assistant", "content": reply, "source": None})
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(reply)
