@@ -310,14 +310,31 @@ st.markdown(
 )
 
 
-# --- 7. CHAT HISTORY ---
+# --- 7. INTERACTIVE ANSWER STYLE SELECTOR ---
+style_options = ["Balanced", "Quick Summary", "Step-by-Step", "With Examples"]
+if hasattr(st, "segmented_control"):
+    chosen_style = st.segmented_control(
+        "Answer style:",
+        options=style_options,
+        default="Balanced",
+    )
+    response_style = chosen_style or "Balanced"
+else:
+    response_style = st.radio(
+        "Answer style:",
+        options=style_options,
+        horizontal=True,
+    )
+
+
+# --- 8. CHAT HISTORY ---
 for message in st.session_state.messages:
     avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 
-# --- 8. CHAT INPUT ---
+# --- 9. CHAT INPUT ---
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
     if cleaned:
@@ -325,13 +342,16 @@ if typed_input := st.chat_input("Type your academic question here..."):
         with st.chat_message("user", avatar="🧑‍🎓"):
             st.markdown(cleaned)
 
-        reply = f"**[UI Preview Mode]** You asked: *\"{cleaned}\"* — frontend ready for interactive prompts and backend integration."
+        reply = (
+            f"**[UI Preview Mode • {response_style}]**\n\n"
+            f"You asked: *\"{cleaned}\"* — answer style selector is working and ready for backend integration."
+        )
         st.session_state.messages.append({"role": "assistant", "content": reply, "source": None})
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(reply)
 
 
-# --- 9. FOOTER ---
+# --- 10. FOOTER ---
 st.markdown(
     '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & Google Gemini</div>',
     unsafe_allow_html=True,
