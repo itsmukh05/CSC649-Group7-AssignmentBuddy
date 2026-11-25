@@ -201,7 +201,23 @@ st.markdown(
 )
 
 
-# --- 3. HELPER FUNCTIONS ---
+# --- 3. DATA & HELPER FUNCTIONS ---
+STARTER_TOPICS = {
+    "✍️ Writing": [
+        ("📝", "What should I include in an introduction?"),
+        ("🎯", "How do I write a good paragraph?"),
+    ],
+    "📚 Referencing": [
+        ("📖", "What is APA referencing?"),
+        ("🔍", "How can I avoid plagiarism?"),
+    ],
+    "🤝 Study & AI": [
+        ("👥", "How can I prepare for a group assignment?"),
+        ("🤖", "Can AI help me with assignments?"),
+    ],
+}
+
+
 @st.cache_data
 def count_dataset_pairs() -> int:
     """Count rows in the custom Q&A CSV dataset if present."""
@@ -232,6 +248,8 @@ def format_chat_for_download(messages: list[dict]) -> str:
 # --- 4. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "pending_prompt" not in st.session_state:
+    st.session_state.pending_prompt = None
 
 dataset_count = count_dataset_pairs()
 
@@ -269,6 +287,7 @@ with st.sidebar:
 
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.pending_prompt = None
         st.toast("Conversation cleared!", icon="🧹")
         st.rerun()
 
@@ -327,31 +346,61 @@ else:
     )
 
 
-# --- 8. CHAT HISTORY ---
+# --- 8. TABBED STARTER CARDS (SHOWN BEFORE FIRST MESSAGE) ---
+if len(st.session_state.messages) == 0:
+    st.markdown("#### 👋 Welcome! Pick a topic or ask your own question below")
+    tabs = st.tabs(list(STARTER_TOPICS.keys()))
+
+    for tab_idx, (topic_name, prompts) in enumerate(STARTER_TOPICS.items()):
+        with tabs[tab_idx]:
+            col1, col2 = st.columns(2)
+            for q_idx, (icon, question) in enumerate(prompts):
+                target_col = col1 if q_idx % 2 == 0 else col2
+                with target_col:
+                    if st.button(f"{icon}  {question}", key=f"starter_{tab_idx}_{q_idx}"):
+                        st.session_state.messages.append(
+                            {"role": "user", "content": question, "source": None}
+                        )
+                        st.session_state.pending_prompt = question
+                        st.toast("Question sent!", icon="✨")
+                        st.rerun()
+
+
+# --- 9. CHAT HISTORY ---
 for message in st.session_state.messages:
     avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 
-# --- 9. CHAT INPUT ---
+# --- 10. PROCESS PENDING REPLY ---
+if st.session_state.pending_prompt:
+    prompt_to_answer = st.session_state.pending_prompt
+    st.session_state.pending_prompt = None
+
+    reply = (
+        f"**[UI Preview Mode • {response_style}]**\n\n"
+        f"You asked: *\"{prompt_to_answer}\"*\n\n"
+        "Interactive prompts and animations are ready — next step is connecting `src/chatbox.py`."
+    )
+    with st.chat_message("assistant", avatar="🤖"):
+        st.markdown(reply)
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": reply, "source": None}
+    )
+
+
+# --- 11. CHAT INPUT BAR ---
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
     if cleaned:
         st.session_state.messages.append({"role": "user", "content": cleaned, "source": None})
-        with st.chat_message("user", avatar="🧑‍🎓"):
-            st.markdown(cleaned)
-
-        reply = (
-            f"**[UI Preview Mode • {response_style}]**\n\n"
-            f"You asked: *\"{cleaned}\"* — answer style selector is working and ready for backend integration."
-        )
-        st.session_state.messages.append({"role": "assistant", "content": reply, "source": None})
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(reply)
+        st.session_state.pending_prompt = cleaned
+        st.rerun()
 
 
-# --- 10. FOOTER ---
+# --- 12. FOOTER ---
 st.markdown(
     '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & Google Gemini</div>',
     unsafe_allow_html=True,
