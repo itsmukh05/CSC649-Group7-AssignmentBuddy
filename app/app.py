@@ -52,6 +52,17 @@ st.markdown(
         100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
     }
 
+    @keyframes slideUpFade {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .hero-banner {
         background: linear-gradient(125deg, #1E3A8A, #2563EB, #0284C7, #1D4ED8);
         background-size: 260% 260%;
@@ -141,6 +152,31 @@ st.markdown(
         flex-shrink: 0;
     }
 
+    .stButton > button {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #CBD5E1;
+        background-color: #FFFFFF;
+        padding: 0.7rem 1rem;
+        text-align: left;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-3px);
+        border-color: #2563EB;
+        color: #1D4ED8;
+        background-color: #EFF6FF;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+    }
+
+    [data-testid="stChatMessage"] {
+        animation: slideUpFade 0.32s ease-out;
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.45rem;
+    }
+
     .integrity-box {
         padding: 0.85rem;
         border-radius: 10px;
@@ -149,6 +185,15 @@ st.markdown(
         font-size: 0.83rem;
         color: #1E293B;
         line-height: 1.45;
+    }
+
+    .app-footer {
+        text-align: center;
+        color: #64748B;
+        font-size: 0.8rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #E2E8F0;
     }
     </style>
     """,
@@ -284,3 +329,10 @@ if typed_input := st.chat_input("Type your academic question here..."):
         st.session_state.messages.append({"role": "assistant", "content": reply, "source": None})
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(reply)
+
+
+# --- 9. FOOTER ---
+st.markdown(
+    '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & Google Gemini</div>',
+    unsafe_allow_html=True,
+)
