@@ -52,6 +52,17 @@ st.markdown(
         100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
     }
 
+    @keyframes slideUpFade {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .hero-banner {
         background: linear-gradient(125deg, #1E3A8A, #2563EB, #0284C7, #1D4ED8);
         background-size: 260% 260%;
@@ -141,6 +152,31 @@ st.markdown(
         flex-shrink: 0;
     }
 
+    .stButton > button {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #CBD5E1;
+        background-color: #FFFFFF;
+        padding: 0.7rem 1rem;
+        text-align: left;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-3px);
+        border-color: #2563EB;
+        color: #1D4ED8;
+        background-color: #EFF6FF;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+    }
+
+    [data-testid="stChatMessage"] {
+        animation: slideUpFade 0.32s ease-out;
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.45rem;
+    }
+
     .integrity-box {
         padding: 0.85rem;
         border-radius: 10px;
@@ -150,13 +186,38 @@ st.markdown(
         color: #1E293B;
         line-height: 1.45;
     }
+
+    .app-footer {
+        text-align: center;
+        color: #64748B;
+        font-size: 0.8rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #E2E8F0;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-# --- 3. HELPER FUNCTIONS ---
+# --- 3. DATA & HELPER FUNCTIONS ---
+STARTER_TOPICS = {
+    "✍️ Writing": [
+        ("📝", "What should I include in an introduction?"),
+        ("🎯", "How do I write a good paragraph?"),
+    ],
+    "📚 Referencing": [
+        ("📖", "What is APA referencing?"),
+        ("🔍", "How can I avoid plagiarism?"),
+    ],
+    "🤝 Study & AI": [
+        ("👥", "How can I prepare for a group assignment?"),
+        ("🤖", "Can AI help me with assignments?"),
+    ],
+}
+
+
 @st.cache_data
 def count_dataset_pairs() -> int:
     """Count rows in the custom Q&A CSV dataset if present."""
@@ -187,6 +248,8 @@ def format_chat_for_download(messages: list[dict]) -> str:
 # --- 4. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "pending_prompt" not in st.session_state:
+    st.session_state.pending_prompt = None
 
 dataset_count = count_dataset_pairs()
 
@@ -224,6 +287,7 @@ with st.sidebar:
 
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.pending_prompt = None
         st.toast("Conversation cleared!", icon="🧹")
         st.rerun()
 
@@ -265,22 +329,79 @@ st.markdown(
 )
 
 
-# --- 7. CHAT HISTORY ---
+# --- 7. INTERACTIVE ANSWER STYLE SELECTOR ---
+style_options = ["Balanced", "Quick Summary", "Step-by-Step", "With Examples"]
+if hasattr(st, "segmented_control"):
+    chosen_style = st.segmented_control(
+        "Answer style:",
+        options=style_options,
+        default="Balanced",
+    )
+    response_style = chosen_style or "Balanced"
+else:
+    response_style = st.radio(
+        "Answer style:",
+        options=style_options,
+        horizontal=True,
+    )
+
+
+# --- 8. TABBED STARTER CARDS (SHOWN BEFORE FIRST MESSAGE) ---
+if len(st.session_state.messages) == 0:
+    st.markdown("#### 👋 Welcome! Pick a topic or ask your own question below")
+    tabs = st.tabs(list(STARTER_TOPICS.keys()))
+
+    for tab_idx, (topic_name, prompts) in enumerate(STARTER_TOPICS.items()):
+        with tabs[tab_idx]:
+            col1, col2 = st.columns(2)
+            for q_idx, (icon, question) in enumerate(prompts):
+                target_col = col1 if q_idx % 2 == 0 else col2
+                with target_col:
+                    if st.button(f"{icon}  {question}", key=f"starter_{tab_idx}_{q_idx}"):
+                        st.session_state.messages.append(
+                            {"role": "user", "content": question, "source": None}
+                        )
+                        st.session_state.pending_prompt = question
+                        st.toast("Question sent!", icon="✨")
+                        st.rerun()
+
+
+# --- 9. CHAT HISTORY ---
 for message in st.session_state.messages:
     avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 
-# --- 8. CHAT INPUT ---
+# --- 10. PROCESS PENDING REPLY ---
+if st.session_state.pending_prompt:
+    prompt_to_answer = st.session_state.pending_prompt
+    st.session_state.pending_prompt = None
+
+    reply = (
+        f"**[UI Preview Mode • {response_style}]**\n\n"
+        f"You asked: *\"{prompt_to_answer}\"*\n\n"
+        "Interactive prompts and animations are ready — next step is connecting `src/chatbox.py`."
+    )
+    with st.chat_message("assistant", avatar="🤖"):
+        st.markdown(reply)
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": reply, "source": None}
+    )
+
+
+# --- 11. CHAT INPUT BAR ---
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
     if cleaned:
         st.session_state.messages.append({"role": "user", "content": cleaned, "source": None})
-        with st.chat_message("user", avatar="🧑‍🎓"):
-            st.markdown(cleaned)
+        st.session_state.pending_prompt = cleaned
+        st.rerun()
 
-        reply = f"**[UI Preview Mode]** You asked: *\"{cleaned}\"* — frontend ready for interactive prompts and backend integration."
-        st.session_state.messages.append({"role": "assistant", "content": reply, "source": None})
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(reply)
+
+# --- 12. FOOTER ---
+st.markdown(
+    '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & Google Gemini</div>',
+    unsafe_allow_html=True,
+)
