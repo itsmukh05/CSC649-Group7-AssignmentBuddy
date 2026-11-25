@@ -1,15 +1,25 @@
 import csv
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
 import streamlit as st
 
 # --- 1. PATHS & BACKEND STATUS ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+load_dotenv(PROJECT_ROOT / ".env", override=True)
+
+from src.chatbox import ask_chatbox
+
 DATASET_CANDIDATES = [
     PROJECT_ROOT / "data" / "assignment_buddy_dataset.csv",
     PROJECT_ROOT / "Chatbox_CSC649_GroupAssignment" / "data" / "assignment_buddy_dataset.csv",
 ]
-BACKEND_CONNECTED = False
+BACKEND_CONNECTED = bool(os.getenv("XAI_API_KEY"))
 
 
 # --- 2. PAGE CONFIG & ANIMATED CSS ---
@@ -261,7 +271,7 @@ with st.sidebar:
 
     if BACKEND_CONNECTED:
         st.markdown(
-            '<div class="status-pill status-live"><span class="dot-green"></span>Backend Live (Gemini + CSV)</div>',
+            '<div class="status-pill status-live"><span class="dot-green"></span>Backend Live (Grok + CSV)</div>',
             unsafe_allow_html=True,
         )
     else:
@@ -378,18 +388,14 @@ if st.session_state.pending_prompt:
     prompt_to_answer = st.session_state.pending_prompt
     st.session_state.pending_prompt = None
 
-    reply = (
-        f"**[UI Preview Mode • {response_style}]**\n\n"
-        f"You asked: *\"{prompt_to_answer}\"*\n\n"
-        "Interactive prompts and animations are ready — next step is connecting `src/chatbox.py`."
-    )
     with st.chat_message("assistant", avatar="🤖"):
+        with st.spinner("Thinking..."):
+            reply = ask_chatbox(prompt_to_answer, style=response_style)
         st.markdown(reply)
 
     st.session_state.messages.append(
         {"role": "assistant", "content": reply, "source": None}
     )
-
 
 # --- 11. CHAT INPUT BAR ---
 if typed_input := st.chat_input("Type your academic question here..."):
@@ -399,9 +405,8 @@ if typed_input := st.chat_input("Type your academic question here..."):
         st.session_state.pending_prompt = cleaned
         st.rerun()
 
-
 # --- 12. FOOTER ---
 st.markdown(
-    '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & Google Gemini</div>',
+    '<div class="app-footer">Assignment Buddy | CSC649 Group Project • Built with Python, Streamlit, Custom CSV Dataset & xAI Grok</div>',
     unsafe_allow_html=True,
 )
