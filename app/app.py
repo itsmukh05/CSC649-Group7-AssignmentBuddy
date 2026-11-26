@@ -35,8 +35,8 @@ st.markdown(
     <style>
     .block-container {
         max-width: 920px;
-        padding-top: 1.4rem;
-        padding-bottom: 2rem;
+        padding-top: 2.6rem;
+        padding-bottom: 5.5rem;
     }
 
     @keyframes gradientShift {
@@ -183,8 +183,35 @@ st.markdown(
     [data-testid="stChatMessage"] {
         animation: slideUpFade 0.32s ease-out;
         border-radius: 14px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 0.45rem;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.65rem;
+    }
+
+    [data-testid="stChatMessage"]:has(.user-bubble-tag) {
+        background-color: #EFF6FF;
+        border: 1px solid #BFDBFE;
+    }
+
+    [data-testid="stChatMessage"]:has(.bot-bubble-tag) {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .msg-role-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+
+    .user-bubble-tag {
+        color: #1D4ED8;
+    }
+
+    .bot-bubble-tag {
+        color: #475569;
     }
 
     .integrity-box {
@@ -378,8 +405,15 @@ if len(st.session_state.messages) == 0:
 
 # --- 9. CHAT HISTORY ---
 for message in st.session_state.messages:
-    avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
+    is_user = message["role"] == "user"
+    avatar = "🧑‍🎓" if is_user else "🤖"
+    role_label = (
+        '<div class="msg-role-label user-bubble-tag">You</div>'
+        if is_user
+        else '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>'
+    )
     with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(role_label, unsafe_allow_html=True)
         st.markdown(message["content"])
 
 
@@ -389,6 +423,10 @@ if st.session_state.pending_prompt:
     st.session_state.pending_prompt = None
 
     with st.chat_message("assistant", avatar="🤖"):
+        st.markdown(
+            '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>',
+            unsafe_allow_html=True,
+        )
         with st.spinner("Thinking..."):
             reply = ask_chatbox(prompt_to_answer, style=response_style)
         st.markdown(reply)
@@ -397,6 +435,7 @@ if st.session_state.pending_prompt:
         {"role": "assistant", "content": reply, "source": None}
     )
 
+
 # --- 11. CHAT INPUT BAR ---
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
@@ -404,6 +443,7 @@ if typed_input := st.chat_input("Type your academic question here..."):
         st.session_state.messages.append({"role": "user", "content": cleaned, "source": None})
         st.session_state.pending_prompt = cleaned
         st.rerun()
+
 
 # --- 12. FOOTER ---
 st.markdown(
