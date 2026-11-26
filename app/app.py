@@ -1,6 +1,8 @@
 import csv
 import os
+import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,6 +22,7 @@ DATASET_CANDIDATES = [
     PROJECT_ROOT / "Chatbox_CSC649_GroupAssignment" / "data" / "assignment_buddy_dataset.csv",
 ]
 BACKEND_CONNECTED = bool(os.getenv("XAI_API_KEY"))
+EXIT_COMMANDS = {"exit", "quit", "bye", "goodbye"}
 
 
 # --- 2. PAGE CONFIG & ANIMATED CSS ---
@@ -282,6 +285,13 @@ def format_chat_for_download(messages: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def stream_response_text(text: str):
+    """Yield response tokens smoothly while preserving markdown line breaks."""
+    for token in re.findall(r"\S+\s*", text):
+        yield token
+        time.sleep(0.018)
+
+
 # --- 4. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -321,6 +331,12 @@ with st.sidebar:
     st.markdown("#### 🎛️ Session Controls")
     user_msg_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
     st.caption(f"Questions asked this session: **{user_msg_count}**")
+
+    enable_typing_effect = st.toggle(
+        "✨ Typing animation",
+        value=True,
+        help="Animate Assignment Buddy's replies word by word.",
+    )
 
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
@@ -427,9 +443,28 @@ if st.session_state.pending_prompt:
             '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>',
             unsafe_allow_html=True,
         )
-        with st.spinner("Thinking..."):
-            reply = ask_chatbox(prompt_to_answer, style=response_style)
-        st.markdown(reply)
+
+        if prompt_to_answer.lower().strip("!?. ") in EXIT_COMMANDS:
+            reply = (
+                "Goodbye! Good luck with your assignment. 🎓\n\n"
+                "You can save this session anytime using **💾 Download Chat (.txt)** "
+                "or start fresh with **🗑️ Clear Conversation** in the sidebar."
+            )
+        else:
+            with st.spinner("Thinking..."):
+                try:
+                    reply = ask_chatbox(prompt_to_answer, style=response_style)
+                except Exception as exc:
+                    reply = (
+                        "⚠️ **Unable to reach the AI backend right now.**\n\n"
+                        "Please check that your `XAI_API_KEY` is set in `.env` and try again.\n\n"
+                        f"*Details: `{exc}`*"
+                    )
+
+        if enable_typing_effect and hasattr(st, "write_stream"):
+            st.write_stream(stream_response_text(reply))
+        else:
+            st.markdown(reply)
 
     st.session_state.messages.append(
         {"role": "assistant", "content": reply, "source": None}
