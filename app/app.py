@@ -1,6 +1,8 @@
 import csv
 import os
+import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,6 +22,7 @@ DATASET_CANDIDATES = [
     PROJECT_ROOT / "Chatbox_CSC649_GroupAssignment" / "data" / "assignment_buddy_dataset.csv",
 ]
 BACKEND_CONNECTED = bool(os.getenv("XAI_API_KEY"))
+EXIT_COMMANDS = {"exit", "quit", "bye", "goodbye"}
 
 
 # --- 2. PAGE CONFIG & ANIMATED CSS ---
@@ -35,8 +38,8 @@ st.markdown(
     <style>
     .block-container {
         max-width: 920px;
-        padding-top: 1.4rem;
-        padding-bottom: 2rem;
+        padding-top: 2.6rem;
+        padding-bottom: 5.5rem;
     }
 
     @keyframes gradientShift {
@@ -183,8 +186,35 @@ st.markdown(
     [data-testid="stChatMessage"] {
         animation: slideUpFade 0.32s ease-out;
         border-radius: 14px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 0.45rem;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.65rem;
+    }
+
+    [data-testid="stChatMessage"]:has(.user-bubble-tag) {
+        background-color: #EFF6FF;
+        border: 1px solid #BFDBFE;
+    }
+
+    [data-testid="stChatMessage"]:has(.bot-bubble-tag) {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .msg-role-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+
+    .user-bubble-tag {
+        color: #1D4ED8;
+    }
+
+    .bot-bubble-tag {
+        color: #475569;
     }
 
     .integrity-box {
@@ -255,6 +285,13 @@ def format_chat_for_download(messages: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def stream_response_text(text: str):
+    """Yield response tokens smoothly while preserving markdown line breaks."""
+    for token in re.findall(r"\S+\s*", text):
+        yield token
+        time.sleep(0.018)
+
+
 # --- 4. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -294,6 +331,12 @@ with st.sidebar:
     st.markdown("#### 🎛️ Session Controls")
     user_msg_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
     st.caption(f"Questions asked this session: **{user_msg_count}**")
+
+    enable_typing_effect = st.toggle(
+        "✨ Typing animation",
+        value=True,
+        help="Animate Assignment Buddy's replies word by word.",
+    )
 
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
@@ -378,8 +421,15 @@ if len(st.session_state.messages) == 0:
 
 # --- 9. CHAT HISTORY ---
 for message in st.session_state.messages:
-    avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
+    is_user = message["role"] == "user"
+    avatar = "🧑‍🎓" if is_user else "🤖"
+    role_label = (
+        '<div class="msg-role-label user-bubble-tag">You</div>'
+        if is_user
+        else '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>'
+    )
     with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(role_label, unsafe_allow_html=True)
         st.markdown(message["content"])
 
 
@@ -389,13 +439,37 @@ if st.session_state.pending_prompt:
     st.session_state.pending_prompt = None
 
     with st.chat_message("assistant", avatar="🤖"):
-        with st.spinner("Thinking..."):
-            reply = ask_chatbox(prompt_to_answer, style=response_style)
-        st.markdown(reply)
+        st.markdown(
+            '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>',
+            unsafe_allow_html=True,
+        )
+
+        if prompt_to_answer.lower().strip("!?. ") in EXIT_COMMANDS:
+            reply = (
+                "Goodbye! Good luck with your assignment. 🎓\n\n"
+                "You can save this session anytime using **💾 Download Chat (.txt)** "
+                "or start fresh with **🗑️ Clear Conversation** in the sidebar."
+            )
+        else:
+            with st.spinner("Thinking..."):
+                try:
+                    reply = ask_chatbox(prompt_to_answer, style=response_style)
+                except Exception as exc:
+                    reply = (
+                        "⚠️ **Unable to reach the AI backend right now.**\n\n"
+                        "Please check that your `XAI_API_KEY` is set in `.env` and try again.\n\n"
+                        f"*Details: `{exc}`*"
+                    )
+
+        if enable_typing_effect and hasattr(st, "write_stream"):
+            st.write_stream(stream_response_text(reply))
+        else:
+            st.markdown(reply)
 
     st.session_state.messages.append(
         {"role": "assistant", "content": reply, "source": None}
     )
+
 
 # --- 11. CHAT INPUT BAR ---
 if typed_input := st.chat_input("Type your academic question here..."):
@@ -404,6 +478,7 @@ if typed_input := st.chat_input("Type your academic question here..."):
         st.session_state.messages.append({"role": "user", "content": cleaned, "source": None})
         st.session_state.pending_prompt = cleaned
         st.rerun()
+
 
 # --- 12. FOOTER ---
 st.markdown(
