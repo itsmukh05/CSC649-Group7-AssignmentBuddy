@@ -6,7 +6,7 @@ from openai import OpenAI
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env", override=True)
 
-MODEL_NAME = "grok-4.3"
+MODEL_NAME = "grok-4.1-fast-reasoning"
 
 
 def get_client() -> OpenAI | None:
