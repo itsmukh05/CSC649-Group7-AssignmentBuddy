@@ -43,72 +43,71 @@ All members are expected to contribute to technical development, testing, docume
 
 ## 4. How to Run the Project
 
-### 4.1 Prerequisites
+4.1 Prerequisites
 
-Before running Assignment Buddy, ensure that the following are installed:
-
+- Before running Assignment Buddy, ensure that the following are installed:
 - Python 3.10 or later.
 - Visual Studio Code or another Python IDE.
 - Git.
-- A Google Gemini API key.
+- An xAI Developer Console account.
+- An xAI API key with access to the selected Grok model.
 
-### 4.2 Clone the Repository
+4.2 Clone the Repository
 
 Open a terminal and run:
 
-```bash
 git clone YOUR_GITHUB_REPOSITORY_URL
-```
 
 Navigate to the project directory:
 
-```bash
-cd Assignment-Buddy
-```
+cd GroupProject_CSC649
 
-### 4.3 Install Dependencies
+Replace YOUR_GITHUB_REPOSITORY_URL with the actual GitHub repository URL.
+
+4.3 Create a Virtual Environment
+
+python -m venv venv
+
+Activate the environment on Windows PowerShell:
+
+.\venv\Scripts\Activate.ps1
+
+4.4 Install Dependencies
 
 Install the required Python packages:
 
-```bash
-pip install -r requirements.txt
-```
+python -m pip install -r requirements.txt
 
-The project dependencies include:
+The project uses the following main dependencies:
 
-```text
 streamlit
-google-genai
+openai
 python-dotenv
-```
 
-### 4.4 Configure the API Key
+The OpenAI Python SDK is used with the xAI-compatible API endpoint.
 
-Create a `.env` file in the root project directory.
+4.5 Configure the API Key
+
+Create a .env file in the root project directory.
 
 Add the following configuration:
 
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+XAI_API_KEY=your_xai_api_key_here
 
-Replace the placeholder with a valid Google Gemini API key.
+Replace the placeholder with your actual xAI API key.
+An API key can be created through the xAI Developer Console.
+Important: Never upload the .env file or actual API key to GitHub. The .env file must be included in .gitignore.
+API usage may require account credits and is subject to xAI pricing.
 
-**Important:** Never upload the `.env` file or actual API key to GitHub. The `.env` file must be included in `.gitignore`.
-
-### 4.5 Run the Application
+4.6 Run the Application
 
 Start the Streamlit application:
 
-```bash
 python -m streamlit run app/app.py
-```
 
 Open a web browser and navigate to:
 
-```text
 http://localhost:8501
-```
 
 Assignment Buddy will be available through the local web interface.
 
@@ -149,7 +148,7 @@ The system combines custom dataset retrieval with Gemini to generate academic as
               |
               v
 +-----------------------------+
-|       Google Gemini API     |
+|       xAI Grok API     |
 |     (LLM Response)          |
 +-----------------------------+
               |
@@ -167,11 +166,13 @@ The system combines custom dataset retrieval with Gemini to generate academic as
 ### 5.2 System Workflow
 
 1. The student enters a question through the Streamlit interface.
-2. The system searches the custom CSV dataset for relevant questions and answers.
-3. The most relevant dataset information is retrieved.
-4. The retrieved information and student's question are provided to Google Gemini.
-5. Gemini generates a natural-language response using the supplied context.
-6. The response is displayed to the student through the chatbot interface.
+2. The chatbot backend receives the student's question.
+3. The system searches the custom CSV dataset for relevant questions and answers.
+4. The most relevant dataset information is retrieved.
+5. The retrieved information and student's question are used to construct a prompt.
+6. The prompt is sent to xAI Grok through the xAI API.
+7. Grok generates a natural-language response.
+8. The response is returned and displayed to the student through the chatbot interface.
 
 ## 6. Dataset Description
 
@@ -222,14 +223,14 @@ The dataset is stored locally and used as the chatbot's knowledge source during 
 
 ### 7.1 Large Language Model
 
-Assignment Buddy uses Google's Gemini API to access a Large Language Model.
+Assignment Buddy uses the xAI API to access the Grok Large Language Model.
 
 | Component | Details |
 |---|---|
-| AI Provider | Google |
-| Model Family | Gemini |
-| Model Name | [Insert the exact Gemini model ID used in the code] |
-| API Integration | Google Gen AI SDK (`google-genai`) |
+| AI Provider | xAI |
+| Model Family | Grok |
+| Model Name | - |
+| API Integration | OpenAI Python SDK |
 | Programming Language | Python |
 | Application Framework | Streamlit |
 
@@ -237,7 +238,7 @@ The exact model ID should be confirmed from the `model` parameter in the final s
 
 ### 7.2 Model Functionality
 
-The Gemini model is responsible for:
+The Grok model is responsible for:
 
 - Understanding students' questions.
 - Processing relevant information retrieved from the custom dataset.
