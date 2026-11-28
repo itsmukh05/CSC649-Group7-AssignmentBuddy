@@ -201,6 +201,27 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
 
+    [data-testid="stChatMessage"] .stButton > button {
+        width: auto;
+        min-height: 1.85rem;
+        padding: 0.18rem 0.65rem;
+        font-size: 0.8rem;
+        border-radius: 8px;
+        text-align: center;
+        white-space: nowrap;
+        background-color: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        color: #334155;
+    }
+
+    [data-testid="stChatMessage"] .stButton > button:hover {
+        transform: translateY(-1px);
+        border-color: #2563EB;
+        color: #1D4ED8;
+        background-color: #DBEAFE;
+        box-shadow: 0 3px 8px rgba(37, 99, 235, 0.12);
+    }
+
     .msg-role-label {
         font-size: 0.72rem;
         font-weight: 700;
@@ -297,6 +318,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pending_prompt" not in st.session_state:
     st.session_state.pending_prompt = None
+if "editing_idx" not in st.session_state:
+    st.session_state.editing_idx = None
 
 dataset_count = count_dataset_pairs()
 
@@ -341,6 +364,7 @@ with st.sidebar:
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
         st.session_state.pending_prompt = None
+        st.session_state.editing_idx = None
         st.toast("Conversation cleared!", icon="🧹")
         st.rerun()
 
@@ -419,18 +443,60 @@ if len(st.session_state.messages) == 0:
                         st.rerun()
 
 
-# --- 9. CHAT HISTORY ---
-for message in st.session_state.messages:
+# --- 9. CHAT HISTORY (WITH INLINE EDIT FOR USER MESSAGES) ---
+for idx, message in enumerate(st.session_state.messages):
     is_user = message["role"] == "user"
     avatar = "🧑‍🎓" if is_user else "🤖"
-    role_label = (
-        '<div class="msg-role-label user-bubble-tag">You</div>'
-        if is_user
-        else '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>'
-    )
+
     with st.chat_message(message["role"], avatar=avatar):
-        st.markdown(role_label, unsafe_allow_html=True)
-        st.markdown(message["content"])
+        if is_user:
+            header_col, btn_col = st.columns([11, 1])
+            with header_col:
+                st.markdown(
+                    '<div class="msg-role-label user-bubble-tag">You</div>',
+                    unsafe_allow_html=True,
+                )
+            with btn_col:
+                if st.session_state.editing_idx != idx:
+                    if st.button("✏️", key=f"edit_btn_{idx}", help="Edit message"):
+                        st.session_state.editing_idx = idx
+                        st.rerun()
+
+            if st.session_state.editing_idx == idx:
+                edited_text = st.text_area(
+                    "Edit message",
+                    value=message["content"],
+                    key=f"edit_input_{idx}",
+                    label_visibility="collapsed",
+                    height=90,
+                )
+                save_col, cancel_col, _ = st.columns([2.4, 1.6, 6])
+                with save_col:
+                    if st.button("✅ Save & Send", key=f"save_edit_{idx}"):
+                        cleaned_edit = edited_text.strip()
+                        if cleaned_edit:
+                            st.session_state.messages = st.session_state.messages[:idx]
+                            st.session_state.messages.append(
+                                {"role": "user", "content": cleaned_edit, "source": None}
+                            )
+                            st.session_state.pending_prompt = cleaned_edit
+                            st.session_state.editing_idx = None
+                            st.toast("Message updated! Regenerating reply...", icon="✏️")
+                            st.rerun()
+                        else:
+                            st.warning("Message cannot be empty.")
+                with cancel_col:
+                    if st.button("Cancel", key=f"cancel_edit_{idx}"):
+                        st.session_state.editing_idx = None
+                        st.rerun()
+            else:
+                st.markdown(message["content"])
+        else:
+            st.markdown(
+                '<div class="msg-role-label bot-bubble-tag">Assignment Buddy</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(message["content"])
 
 
 # --- 10. PROCESS PENDING REPLY ---
@@ -475,6 +541,7 @@ if st.session_state.pending_prompt:
 if typed_input := st.chat_input("Type your academic question here..."):
     cleaned = typed_input.strip()
     if cleaned:
+        st.session_state.editing_idx = None
         st.session_state.messages.append({"role": "user", "content": cleaned, "source": None})
         st.session_state.pending_prompt = cleaned
         st.rerun()
